@@ -517,7 +517,8 @@ class CoreActions(object):  # pylint: disable=R0904
         'Execute console command <command> and return its output lines.'
 
         id = self._write_action('Command', {'Command': command})
-        return self._translate_response(self.read_response(id))['Lines']
+        return self._translate_response(
+            self.read_response(id)).get('Lines') or []
 
     def ConfbridgeListRooms(self):
         '''
@@ -553,8 +554,8 @@ class CoreActions(object):  # pylint: disable=R0904
             return parties
         else:
             confbridge_re = re.compile(r'^(?P<channel>SIP/\S+)\s+'
-                                       r'(?P<user_profile>\S+)\s+'
-                                       r'(?P<bridge_profile>\S+)\s+'
+                                       r'(?P<user_profile>\S+)?\s+'
+                                       r'(?P<bridge_profile>\S+)?\s+'
                                        r'(?P<menu>\w*)\s+'
                                        r'(?P<caller_id>\S+)\s+'
                                        r'(?P<muted>\S+)')
@@ -571,7 +572,8 @@ class CoreActions(object):  # pylint: disable=R0904
         '''
 
         resp = self.Command('confbridge kick %s %s' % (room, channel))
-        return 'No participant named' not in resp[1]
+        return ('No participant named' not in resp[1] and
+                'No conference bridge named' not in resp[1])
 
     def ConfbridgeMute(self, room, channel):
         '''
@@ -580,7 +582,8 @@ class CoreActions(object):  # pylint: disable=R0904
         '''
 
         resp = self.Command('confbridge mute %s %s' % (room, channel))
-        return 'No channel named' not in resp[1]
+        return ('No channel named' not in resp[1] and
+                'No conference bridge named' not in resp[1])
 
     def ConfbridgeUnmute(self, room, channel):
         '''
@@ -589,7 +592,42 @@ class CoreActions(object):  # pylint: disable=R0904
         '''
 
         resp = self.Command('confbridge unmute %s %s' % (room, channel))
-        return 'No channel named' not in resp[1]
+        return ('No channel named' not in resp[1] and
+                'No conference bridge named' not in resp[1])
+
+    def ConfbridgeStartRecord(self, room, rFile=None):
+        '''
+        Starts recording the conference <room>.
+        The <rFile> is optional.
+        Returns boolean.
+        '''
+
+        if rFile:
+            resp = self.Command('confbridge record start %s %s'
+                                % (room, rFile))
+        else:
+            resp = self.Command('confbridge record start %s' % room)
+        return 'Conference not found.' not in resp[1]
+
+    def ConfbridgeStopRecord(self, room):
+        '''
+        Stop recording the conference <room>.
+        Returns boolean.
+        '''
+
+        resp = self.Command('confbridge record stop %s' % room)
+        return 'Conference not found.' not in resp[1]
+
+    def ConfbridgeisRecording(self, room):
+        '''
+        Verify if the conference <room> is recording.
+        Returns boolean.
+        '''
+
+        resp = self.CoreShowChannels()
+        recording_re = re.compile('^ConfBridgeRecorder/conf-%s' % room)
+        return any(recording_re.search(str(line['Channel']))
+                   for line in resp)
 
     def DBGet(self, family, key):
         'Retrieve a key from the Asterisk database'
