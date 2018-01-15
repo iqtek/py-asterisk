@@ -944,7 +944,7 @@ class CoreActions(object):  # pylint: disable=R0904
             'Paused': paused and 'true' or 'false'
         }
         if reason is not None:
-            action.update('Reason': reason)
+            action.update({'Reason': reason})
         id = self._write_action('QueuePause', action)
 
         return self._translate_response(self.read_response(id))
